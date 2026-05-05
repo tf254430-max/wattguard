@@ -1,0 +1,7 @@
+# Wokwi for VSCode configuration.
+# After running "pio run -e wokwi", point Wokwi at the resulting binaries:
+
+[wokwi]
+version = 1
+firmware = '.pio/build/wokwi/firmware.bin'
+elf      = '.pio/build/wokwi/firmware.elf'
