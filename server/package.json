@@ -1,0 +1,22 @@
+{
+  "name": "wattguard-server",
+  "version": "1.0.0",
+  "description": "WattGuard backend - MQTT subscriber, SQLite persistence, REST/SSE API, and HTML dashboard for the Yaka prepaid power monitor.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node --test tests/*.test.js",
+    "seed": "node scripts/seed.js",
+    "simulate": "node scripts/simulate.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.9.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "mqtt": "^5.10.0"
+  }
+}
