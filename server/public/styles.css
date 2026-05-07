@@ -1,0 +1,35 @@
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.navbar-brand .text-warning { color: #ffc107 !important; }
+
+.card {
+  border: 0;
+  border-radius: .75rem;
+}
+
+.display-5 {
+  line-height: 1;
+}
+
+#alert-strip {
+  border-radius: 0;
+  border-left: 0;
+  border-right: 0;
+  border-top: 0;
+}
+
+.event-icon {
+  width: 1.5rem;
+  display: inline-block;
+  text-align: center;
+}
+
+.scenario-btn { min-width: 130px; }
+.scenario-btn.on  { background: #198754; color: white; border-color: #198754; }
+.scenario-btn.off { background: #fff;    color: #212529; border-color: #ced4da; }
+
+@media (max-width: 575px) {
+  .display-5 { font-size: 2rem; }
+}
