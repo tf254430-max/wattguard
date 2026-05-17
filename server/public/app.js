@@ -209,7 +209,11 @@
 
   function renderScenario(profiles) {
     const wrap = $('scenario-buttons');
-    wrap.innerHTML = '';
+    // The profile list is static, so build the buttons once and leave
+    // them alone on subsequent refreshes — otherwise every 10 s tick
+    // (or any SSE-triggered refresh) would tear them down and the
+    // visual ON state would flip back to OFF mid-demo.
+    if (wrap.children.length > 0) return;
     Object.entries(profiles).forEach(([key, p]) => {
       const btn = document.createElement('button');
       btn.type = 'button';
@@ -234,6 +238,14 @@
     btn.classList.toggle('on', next);
     btn.classList.toggle('off', !next);
     btn.textContent = `${label} ${next ? 'ON' : 'OFF'}`;
+
+    // SSE updates the live chart + power/current KPIs within ~1 s, but the
+    // slower KPIs (units left, ETA, severity strip) and the appliance pie
+    // depend on the full /api/* fan-out. Fire two extra refreshes after a
+    // toggle so the consequence chain is visible inside the demo window
+    // instead of waiting for the next 10 s tick.
+    setTimeout(refreshAll, 2000);
+    setTimeout(refreshAll, 5000);
   }
 
   // ---- forms ------------------------------------------------------------
@@ -262,11 +274,16 @@
     const fd = new FormData(ev.target);
     const body = {};
     fd.forEach((v, k) => { if (v !== '') body[k] = Number(v); });
-    await fetch('/api/settings', {
+    // Drop focus before refresh so the alert strip / units-left re-render
+    // against the just-saved thresholds without being skipped by the
+    // active-element guard in refreshAll.
+    ev.target.querySelectorAll('input').forEach(el => el.blur());
+    const r = await fetch('/api/settings', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
+    if (r.ok) refreshAll();
   });
 
   // ---- data refresh -----------------------------------------------------
@@ -303,11 +320,17 @@
       renderTopups(tu.items);
       renderScenario(sc.profiles);
 
+      // Repopulate the settings form, but never clobber a field the user
+      // is currently editing — without this guard, typing in a settings
+      // input would be wiped on the next 10 s refresh tick.
       const f = $('settings-form');
-      f.elements.voltage.value = st.voltage;
-      f.elements.caution_units.value = st.caution_units;
-      f.elements.warning_units.value = st.warning_units;
-      f.elements.critical_units.value = st.critical_units;
+      const editing = f.contains(document.activeElement);
+      if (!editing) {
+        f.elements.voltage.value = st.voltage;
+        f.elements.caution_units.value = st.caution_units;
+        f.elements.warning_units.value = st.warning_units;
+        f.elements.critical_units.value = st.critical_units;
+      }
     } catch (e) {
       console.error('refresh failed', e);
     }
