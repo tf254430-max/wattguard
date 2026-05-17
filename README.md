@@ -162,10 +162,21 @@ loads that you can hand-verify against the dashboard.
 - All DOM updates use `textContent`; SQLite queries use prepared statements.
 - Telemetry older than `RETENTION_DAYS` (default 90) is pruned at startup.
 
-## Tools
+## Tech stack
 
-Built with PlatformIO, Node.js, Express, better-sqlite3, MQTT.js, Chart.js, and Wokwi for ESP32 simulation.
+Node.js, Express, better-sqlite3, MQTT.js, Server-Sent Events, Bootstrap 5, Chart.js, PlatformIO, Arduino framework for ESP32, PubSubClient, ArduinoJson, Adafruit SSD1306, Wokwi for ESP32 simulation, `node --test`.
 
 ## License
 
-MIT — see `LICENSE`.
+[MIT](LICENSE) — Tinka Fahad, 2026.
+
+## Author
+
+```
+Tinka Fahad
+Registration No: 254430
+BSc Data Science and AI — Year 2 Semester 1
+Cavendish University Uganda — Internet of Things Module
+Academic Year 2025/2026
+```
+
