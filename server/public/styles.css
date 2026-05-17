@@ -28,7 +28,15 @@ body {
 
 .scenario-btn { min-width: 130px; }
 .scenario-btn.on  { background: #198754; color: white; border-color: #198754; }
-.scenario-btn.off { background: #fff;    color: #212529; border-color: #ced4da; }
+.scenario-btn.off {
+  background: var(--bs-body-bg);
+  color: var(--bs-body-color);
+  border-color: var(--bs-border-color);
+}
+
+.theme-icon-light, .theme-icon-dark { line-height: 1; }
+[data-bs-theme="light"] .theme-icon-dark { display: none; }
+[data-bs-theme="dark"]  .theme-icon-light { display: none; }
 
 @media (max-width: 575px) {
   .display-5 { font-size: 2rem; }
