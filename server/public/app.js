@@ -88,6 +88,10 @@
     pill.textContent = label;
   }
 
+  const SEVERITY_RANK = { ok: 0, caution: 1, warning: 2, critical: 3 };
+  let lastSeverityShown = null;
+  const BASE_TITLE = 'WattGuard - Yaka Power Monitor';
+
   function setAlertStrip(severity, units) {
     const strip = $('alert-strip');
     const map = {
@@ -99,6 +103,55 @@
     const m = map[severity] || map.ok;
     strip.className = 'alert ' + m.cls + ' rounded-0 mb-0 py-2 small';
     strip.textContent = m.text;
+
+    // Update the browser tab title so the alert is visible even when the
+    // tab is in the background.
+    if (severity === 'ok') {
+      document.title = BASE_TITLE;
+    } else {
+      const icon = severity === 'critical' ? '\u{1F6A8}' :
+                   severity === 'warning'  ? '\u{26A0}\u{FE0F}' :
+                                             '\u{2139}\u{FE0F}';
+      document.title = `${icon} ${severity.toUpperCase()} ${fmt2(units)}u - WattGuard`;
+    }
+
+    // Only beep when the situation escalates — going from caution to
+    // warning, or warning to critical. Recovery (back to ok) is silent.
+    if (lastSeverityShown !== null &&
+        SEVERITY_RANK[severity] > SEVERITY_RANK[lastSeverityShown]) {
+      playAlertBeep(severity);
+    }
+    lastSeverityShown = severity;
+  }
+
+  // Generate a short attention beep via Web Audio. No file to load, no
+  // permission prompt — but browsers block audio until the user has
+  // interacted with the page, so the first click on any button "unlocks"
+  // sound for the rest of the session.
+  function playAlertBeep(severity) {
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      const ctx = new Ctx();
+      const beeps = severity === 'critical' ? 3 : 1;
+      const freq  = severity === 'critical' ? 1000 : 660;
+      const now = ctx.currentTime;
+      for (let i = 0; i < beeps; i++) {
+        const start = now + i * 0.28;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.value = freq;
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.exponentialRampToValueAtTime(0.18, start + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.20);
+        osc.start(start);
+        osc.stop(start + 0.22);
+      }
+      setTimeout(() => ctx.close(), beeps * 300 + 200);
+    } catch (e) { /* ignore — audio is a nice-to-have */ }
   }
 
   function fmtEta(seconds) {

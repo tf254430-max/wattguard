@@ -18,6 +18,19 @@ body {
   border-left: 0;
   border-right: 0;
   border-top: 0;
+  transition: background-color .25s ease-in-out;
+}
+
+/* Pulse the strip while in warning / critical to draw attention without
+   relying on sound (which most browsers block until the user clicks). */
+@keyframes alert-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.65; }
+}
+#alert-strip.alert-warning,
+#alert-strip.alert-danger {
+  animation: alert-pulse 1.4s ease-in-out infinite;
+  font-weight: 600;
 }
 
 .event-icon {
