@@ -9,16 +9,9 @@ const { startMqttSubscriber } = require('./mqtt');
 const apiRouter = require('./routes/api');
 const { sseHandler, broadcast } = require('./routes/sse');
 
-function main() {
-  db.initDb();
-  db.schedulePruning();
-
-  startMqttSubscriber({
-    onTelemetry: msg => broadcast(msg),
-    onEvent:     ev  => broadcast({ type: 'event', event: ev }),
-    onStatus:    s   => broadcast({ type: 'status', status: s.status }),
-  });
-
+// Build the Express app without starting MQTT or binding a port — kept
+// separate so tests can boot a copy on a random port against a temp DB.
+function createApp() {
   const app = express();
   app.disable('x-powered-by');
   app.use(express.json({ limit: '32kb' }));
@@ -36,6 +29,20 @@ function main() {
     res.status(500).json({ error: 'internal error' });
   });
 
+  return app;
+}
+
+function main() {
+  db.initDb();
+  db.schedulePruning();
+
+  startMqttSubscriber({
+    onTelemetry: msg => broadcast(msg),
+    onEvent:     ev  => broadcast({ type: 'event', event: ev }),
+    onStatus:    s   => broadcast({ type: 'status', status: s.status }),
+  });
+
+  const app = createApp();
   app.listen(config.port, () => {
     console.log(
       `WattGuard running at http://localhost:${config.port}\n` +
@@ -48,4 +55,4 @@ function main() {
 
 if (require.main === module) main();
 
-module.exports = { main };
+module.exports = { main, createApp };
