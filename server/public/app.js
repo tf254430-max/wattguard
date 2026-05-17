@@ -269,6 +269,30 @@
     }
   });
 
+  // ---- demo controls ----------------------------------------------------
+  $('btn-reset-scenarios').addEventListener('click', async () => {
+    const r = await fetch('/api/admin/reset-scenarios', { method: 'POST' });
+    if (!r.ok) return;
+    // Sync the dashboard buttons immediately; the simulator will catch up
+    // within a second and the live chart will fall toward zero.
+    document.querySelectorAll('button[data-appliance]').forEach(btn => {
+      const appliance = btn.dataset.appliance;
+      const label = btn.textContent.replace(/ (ON|OFF)$/, '');
+      scenarioState[appliance] = false;
+      btn.classList.remove('on');
+      btn.classList.add('off');
+      btn.textContent = `${label} OFF`;
+    });
+    setTimeout(refreshAll, 2000);
+  });
+
+  $('btn-clear-records').addEventListener('click', async () => {
+    if (!confirm('Wipe telemetry, events, top-ups and attribution for this device?\n\nThis cannot be undone.')) return;
+    const r = await fetch('/api/admin/clear', { method: 'POST' });
+    if (!r.ok) return;
+    await refreshAll();
+  });
+
   $('settings-form').addEventListener('submit', async ev => {
     ev.preventDefault();
     const fd = new FormData(ev.target);

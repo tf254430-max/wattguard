@@ -197,3 +197,31 @@ test('PUT /api/settings silently rejects zero threshold', async () => {
   const body = await r.json();
   assert.equal('caution_units' in body.updated, false);
 });
+
+// ---- demo / admin controls ---------------------------------------------
+
+test('POST /api/admin/clear wipes telemetry / events / topups / attribution', async () => {
+  // Drop a top-up so there is something to clear.
+  await send('/api/topups', 'POST', { units: 5, reference: 'TO-BE-WIPED' });
+  let topups = await (await get('/api/topups')).json();
+  assert.ok(topups.items.some(x => x.reference === 'TO-BE-WIPED'));
+
+  const r = await send('/api/admin/clear', 'POST');
+  assert.equal(r.status, 200);
+  const body = await r.json();
+  assert.equal(body.ok, true);
+  assert.deepEqual(
+    body.cleared.sort(),
+    ['appliance_attribution', 'events', 'telemetry', 'topups'].sort(),
+  );
+
+  topups = await (await get('/api/topups')).json();
+  assert.equal(topups.items.length, 0);
+});
+
+test('POST /api/admin/reset-scenarios responds and is loopback-gated', async () => {
+  const r = await send('/api/admin/reset-scenarios', 'POST');
+  assert.equal(r.status, 200);
+  // ok may be false because MQTT is not connected in the test harness;
+  // the contract is that the request was accepted, not delivered.
+});

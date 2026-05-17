@@ -136,4 +136,32 @@ router.put('/settings', (req, res) => {
   res.json({ updated: updates });
 });
 
+// ---- demo controls -----------------------------------------------------
+// Destructive endpoints. The dashboard is meant to run on a single laptop
+// for demonstration, so these are gated to loopback callers only — no
+// remote machine can wipe data even if the port were exposed.
+function isLoopback(req) {
+  const ip = req.ip || '';
+  return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
+}
+
+router.post('/admin/clear', (req, res) => {
+  if (!isLoopback(req)) return res.status(403).json({ error: 'loopback only' });
+  const sqlDb = db.getDb();
+  const tx = sqlDb.transaction(() => {
+    sqlDb.prepare('DELETE FROM telemetry             WHERE device_id = ?').run(config.deviceId);
+    sqlDb.prepare('DELETE FROM appliance_attribution WHERE device_id = ?').run(config.deviceId);
+    sqlDb.prepare('DELETE FROM events                WHERE device_id = ?').run(config.deviceId);
+    sqlDb.prepare('DELETE FROM topups                WHERE device_id = ?').run(config.deviceId);
+  });
+  tx();
+  res.json({ ok: true, cleared: ['telemetry', 'appliance_attribution', 'events', 'topups'] });
+});
+
+router.post('/admin/reset-scenarios', (req, res) => {
+  if (!isLoopback(req)) return res.status(403).json({ error: 'loopback only' });
+  const ok = mqttClient.publishCommand({ reset_all: true });
+  res.json({ ok });
+});
+
 module.exports = router;

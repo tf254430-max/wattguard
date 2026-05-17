@@ -22,11 +22,15 @@ const SCENARIO = {
   ac:     5.83,
 };
 
-let appliances = new Set(['fridge']);  // baseline
+// Start with nothing toggled so a fresh dashboard shows 0 W until the
+// user clicks an appliance ON. Matches the visual state of the scenario
+// buttons (all OFF on load) and makes "off = off" honest on camera.
+let appliances = new Set();
 let extraBoost = 0;
 
 function currentDraw() {
-  let amps = 0.15;  // standby/baseline ~36 W
+  // Zero baseline so a clean "all off" state reads as 0 W.
+  let amps = 0;
   for (const a of appliances) amps += SCENARIO[a] || 0;
   return amps + extraBoost;
 }
@@ -46,7 +50,14 @@ client.on('message', (topic, buf) => {
   if (topic !== TOPIC_CMD) return;
   let cmd;
   try { cmd = JSON.parse(buf.toString()); } catch (e) { return; }
-  if (!cmd || !cmd.appliance) return;
+  if (!cmd) return;
+  // Support a broadcast reset: { reset_all: true } clears every appliance.
+  if (cmd.reset_all) {
+    appliances.clear();
+    console.log('[sim] reset_all -> appliances now: (none)');
+    return;
+  }
+  if (!cmd.appliance) return;
   if (cmd.state === 'on') appliances.add(cmd.appliance);
   else appliances.delete(cmd.appliance);
   console.log('[sim] appliances now:', Array.from(appliances).join(', ') || '(none)');

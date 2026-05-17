@@ -8,6 +8,9 @@
     "dev": "node --watch server.js",
     "test": "node --test tests/*.test.js",
     "seed": "node scripts/seed.js",
+    "seed:caution": "node scripts/seed.js caution",
+    "seed:warning": "node scripts/seed.js warning",
+    "seed:critical": "node scripts/seed.js critical",
     "simulate": "node scripts/simulate.js"
   },
   "engines": {

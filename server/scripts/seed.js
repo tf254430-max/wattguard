@@ -3,12 +3,30 @@
 // Populate the database with two weeks of plausible demo data so the
 // dashboard has charts to draw the moment the marker opens it.
 //
-// Usage: npm run seed
+// Usage:
+//   npm run seed              normal balance (~43 units left, severity 'ok')
+//   npm run seed:caution      ~9 units left  (severity 'caution', blue strip)
+//   npm run seed:warning      ~4 units left  (severity 'warning', yellow strip)
+//   npm run seed:critical     ~0.5 units left (severity 'critical', red strip)
+//
+// The non-normal modes adjust the seeded top-ups so the dashboard opens
+// already sitting on the chosen alert state. Useful for capturing demo
+// screenshots / video clips of each severity level without waiting for
+// hours of real consumption.
 
 const config = require('../config');
 const db = require('../db');
 
 const DEVICE_ID = config.deviceId;
+
+// Target remaining-units balance for each demo mode. Sized so each mode
+// lands cleanly inside its own severity band given the default thresholds
+// (caution=10, warning=5, critical=1).
+const MODE_TARGETS = {
+  caution:  9,
+  warning:  4,
+  critical: 0.5,
+};
 
 // Per-day variation so the 14-day bar chart isn't a flat strip of
 // identical bars. Indexed by daysAgo (0 = today, 13 = two weeks back).
@@ -60,11 +78,33 @@ function applianceForPower(p) {
   return 'lights';
 }
 
+function resolveTargetUnits(arg) {
+  if (!arg) return { mode: 'normal', target: null };
+  const lower = arg.toLowerCase();
+  if (lower in MODE_TARGETS) return { mode: lower, target: MODE_TARGETS[lower] };
+  const n = Number(arg);
+  if (Number.isFinite(n) && n >= 0 && n <= 10000) {
+    return { mode: 'custom', target: n };
+  }
+  return { mode: null, target: null };
+}
+
 function main() {
+  const arg = process.argv[2];
+  const { mode, target } = resolveTargetUnits(arg);
+  if (mode === null) {
+    console.error(
+      `[seed] unrecognised argument '${arg}'.\n` +
+      `       Use one of: normal | caution | warning | critical\n` +
+      `       or a numeric target balance, e.g.  node scripts/seed.js 15`
+    );
+    process.exit(1);
+  }
+
   db.initDb();
   const now = Math.floor(Date.now() / 1000);
 
-  console.log('[seed] clearing existing rows for', DEVICE_ID);
+  console.log(`[seed] mode=${mode}; clearing existing rows for ${DEVICE_ID}`);
   const sqlDb = db.getDb();
   sqlDb.prepare('DELETE FROM telemetry             WHERE device_id = ?').run(DEVICE_ID);
   sqlDb.prepare('DELETE FROM appliance_attribution WHERE device_id = ?').run(DEVICE_ID);
@@ -93,20 +133,41 @@ function main() {
   });
   tx();
 
-  // initial top-up + a refill - sized so the dashboard demo opens
-  // showing a comfortable balance with a multi-day ETA.
-  db.insertTopup({
-    device_id: DEVICE_ID,
-    units: 100,
-    reference: 'YK-DEMO-001',
-    purchased_at: now - 14 * 86400,
-  });
-  db.insertTopup({
-    device_id: DEVICE_ID,
-    units: 80,
-    reference: 'YK-DEMO-002',
-    purchased_at: now - 5 * 86400,
-  });
+  // Compute what was actually inserted so the top-ups can be sized to
+  // leave the right remaining balance for the chosen demo mode.
+  const consumedWh = sqlDb.prepare(
+    'SELECT COALESCE(SUM(energy_inc_wh), 0) AS wh FROM telemetry WHERE device_id = ?'
+  ).get(DEVICE_ID).wh;
+  const consumedUnits = consumedWh / 1000;
+
+  if (mode === 'normal') {
+    // Original two top-ups; balance lands around 43 units left.
+    db.insertTopup({
+      device_id: DEVICE_ID,
+      units: 100,
+      reference: 'YK-DEMO-001',
+      purchased_at: now - 14 * 86400,
+    });
+    db.insertTopup({
+      device_id: DEVICE_ID,
+      units: 80,
+      reference: 'YK-DEMO-002',
+      purchased_at: now - 5 * 86400,
+    });
+  } else {
+    // Single top-up sized exactly so the remaining balance lands at the
+    // requested target (named mode or custom numeric argument).
+    const total = +(consumedUnits + target).toFixed(2);
+    const ref = mode === 'custom'
+      ? `YK-DEMO-CUSTOM-${target}`
+      : `YK-DEMO-${mode.toUpperCase()}`;
+    db.insertTopup({
+      device_id: DEVICE_ID,
+      units: total,
+      reference: ref,
+      purchased_at: now - 14 * 86400,
+    });
+  }
 
   // a couple of sample events
   db.insertEvent({
@@ -124,7 +185,11 @@ function main() {
     details_json: JSON.stringify({ units_remaining: 9.4 }),
   });
 
-  console.log('[seed] done');
+  if (mode === 'normal') {
+    console.log('[seed] done');
+  } else {
+    console.log(`[seed] done; dashboard will open showing ~${target} units left (mode '${mode}')`);
+  }
 }
 
 if (require.main === module) main();
