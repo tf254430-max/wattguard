@@ -81,6 +81,17 @@ function pruneOldTelemetry() {
   db.prepare('DELETE FROM appliance_attribution WHERE ts < ?').run(cutoff);
 }
 
+// Run prune once a day so retention is actually enforced on a long-running
+// server, not only at startup.
+function schedulePruning(intervalMs = 24 * 60 * 60 * 1000) {
+  const handle = setInterval(() => {
+    try { pruneOldTelemetry(); }
+    catch (e) { console.error('[db] prune failed:', e.message); }
+  }, intervalMs);
+  if (typeof handle.unref === 'function') handle.unref();
+  return handle;
+}
+
 // ---- Telemetry -----------------------------------------------------------
 
 function insertTelemetry(t) {
@@ -223,6 +234,8 @@ function setSetting(key, value) {
 module.exports = {
   initDb,
   getDb,
+  pruneOldTelemetry,
+  schedulePruning,
   insertTelemetry,
   latestTelemetry,
   telemetryBetween,

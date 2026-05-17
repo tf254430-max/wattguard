@@ -11,6 +11,7 @@ const { sseHandler, broadcast } = require('./routes/sse');
 
 function main() {
   db.initDb();
+  db.schedulePruning();
 
   startMqttSubscriber({
     onTelemetry: msg => broadcast(msg),

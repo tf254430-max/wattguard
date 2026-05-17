@@ -112,13 +112,22 @@ router.get('/settings', (_req, res) => {
   });
 });
 
+// Per-key bounds keep the alert math sensible. Anything outside the range
+// (e.g. negative voltage, zero thresholds) is silently dropped from the
+// update — the response reports only what actually changed.
+const SETTING_BOUNDS = {
+  voltage:        { min: 100, max: 300 },
+  caution_units:  { min: 0.1, max: 10000 },
+  warning_units:  { min: 0.1, max: 10000 },
+  critical_units: { min: 0.1, max: 10000 },
+};
+
 router.put('/settings', (req, res) => {
-  const allowed = ['voltage', 'caution_units', 'warning_units', 'critical_units'];
   const updates = {};
-  for (const key of allowed) {
+  for (const [key, bounds] of Object.entries(SETTING_BOUNDS)) {
     if (req.body && req.body[key] !== undefined) {
       const value = Number(req.body[key]);
-      if (Number.isFinite(value)) {
+      if (Number.isFinite(value) && value >= bounds.min && value <= bounds.max) {
         db.setSetting(key, value);
         updates[key] = value;
       }
