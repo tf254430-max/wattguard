@@ -90,44 +90,6 @@ Open the **Top-ups** card on the dashboard, click **Record top-up**, enter the
 units you bought (e.g. `50`) and an optional reference. The remaining-units
 counter updates and the depletion ETA recomputes against the current load.
 
-## Repository layout
-
-```
-wattguard/
-├── README.md                    <- you are here
-├── .env.example
-├── .gitignore
-├── firmware/                    <- ESP32 / Wokwi
-│   ├── platformio.ini
-│   ├── wokwi.toml
-│   ├── wokwi/diagram.json
-│   ├── src/main.cpp
-│   └── test/test_rms.cpp
-├── server/                      <- Node.js + dashboard
-│   ├── package.json
-│   ├── server.js
-│   ├── config.js
-│   ├── db.js
-│   ├── mqtt.js
-│   ├── ledger.js
-│   ├── signatures.js
-│   ├── routes/api.js
-│   ├── routes/sse.js
-│   ├── public/                  <- HTML dashboard
-│   │   ├── index.html
-│   │   ├── app.js
-│   │   └── styles.css
-│   ├── scripts/
-│   │   ├── seed.js              <- npm run seed
-│   │   └── simulate.js          <- npm run simulate
-│   ├── tests/                   <- npm test
-│   └── data/                    <- wattguard.db lives here
-└── docs/
-    ├── architecture.md
-    ├── Backlog.md
-    └── Report.md
-```
-
 ## Configuration
 
 Defaults work out of the box. To override anything (port, broker URL, topic
@@ -154,13 +116,7 @@ loads that you can hand-verify against the dashboard.
 
 ## Security and privacy
 
-- Public MQTT broker is fine for an academic demo because the topic prefix is
-  randomised and contains no personal data. A real deployment would use a
-  private broker with TLS + per-device credentials — the firmware and backend
-  treat the broker URL as configuration, so this is a one-line change.
-- The dashboard binds to `localhost` only.
-- All DOM updates use `textContent`; SQLite queries use prepared statements.
-- Telemetry older than `RETENTION_DAYS` (default 90) is pruned at startup.
+The public MQTT broker is acceptable for the academic demo: the topic prefix is randomised and the payload carries no personal data. The destructive maintenance endpoints (`/api/admin/*`) are loopback-gated and refuse non-localhost callers. DOM updates use `textContent`, SQLite queries use prepared statements, and telemetry older than `RETENTION_DAYS` (default 90) is pruned both at startup and every 24 hours by a scheduled job.
 
 ## Tech stack
 
