@@ -45,7 +45,7 @@ unchanged on a real ESP32 with an ACS712 current sensor.
 Four-tier IoT architecture (perception / network / platform / application), all
 running on the marker's laptop with two commands.
 
-## Quick start (for the marker)
+## Getting started
 
 **Prerequisites:** [Node.js 20 LTS](https://nodejs.org). Nothing else.
 
@@ -124,7 +124,8 @@ wattguard/
 │   └── data/                    <- wattguard.db lives here
 └── docs/
     ├── architecture.md
-    └── demo-video.md
+    ├── Backlog.md
+    └── Report.md
 ```
 
 ## Configuration

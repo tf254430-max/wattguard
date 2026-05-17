@@ -12,7 +12,7 @@ Electricity Users
 **Mode of Study:** Full-time
 **Exam Date:** May 2026
 
-**Demo video:** *<paste your Google Drive link here>*
+**Demo video:** *Link will be shared at submission.*
 **GitHub repository:** https://github.com/tf254430-max/wattguard
 
 ---
