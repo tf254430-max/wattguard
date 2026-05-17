@@ -225,3 +225,22 @@ test('POST /api/admin/reset-scenarios responds and is loopback-gated', async () 
   // ok may be false because MQTT is not connected in the test harness;
   // the contract is that the request was accepted, not delivered.
 });
+
+test('POST /api/admin/set-balance parks the meter at the requested units', async () => {
+  const r = await send('/api/admin/set-balance', 'POST', { units: 0.5 });
+  assert.equal(r.status, 200);
+  const body = await r.json();
+  assert.equal(body.ok, true);
+  assert.equal(body.target_units_remaining, 0.5);
+  // /api/live should now report a remaining-units value close to the target.
+  const live = await (await get('/api/live')).json();
+  assert.ok(Math.abs(live.units_remaining - 0.5) < 0.01,
+    `expected units_remaining ~0.5 but got ${live.units_remaining}`);
+});
+
+test('POST /api/admin/set-balance rejects negative or huge values', async () => {
+  const neg = await send('/api/admin/set-balance', 'POST', { units: -1 });
+  assert.equal(neg.status, 400);
+  const big = await send('/api/admin/set-balance', 'POST', { units: 99999 });
+  assert.equal(big.status, 400);
+});

@@ -164,4 +164,34 @@ router.post('/admin/reset-scenarios', (req, res) => {
   res.json({ ok });
 });
 
+// Demo helper: park the Yaka balance at an arbitrary target so any alert
+// state can be triggered on camera without waiting for real consumption.
+// Implemented as: delete existing top-ups and insert one synthetic top-up
+// sized to (consumed + target). Keeps telemetry / events / attribution
+// untouched so the historical charts continue to look populated.
+router.post('/admin/set-balance', (req, res) => {
+  if (!isLoopback(req)) return res.status(403).json({ error: 'loopback only' });
+  const target = Number(req.body && req.body.units);
+  if (!Number.isFinite(target) || target < 0 || target > 10000) {
+    return res.status(400).json({ error: 'units must be between 0 and 10000' });
+  }
+  const sqlDb = db.getDb();
+  const consumedWh = sqlDb.prepare(
+    'SELECT COALESCE(SUM(energy_inc_wh), 0) AS wh FROM telemetry WHERE device_id = ?'
+  ).get(config.deviceId).wh;
+  const consumedUnits = consumedWh / 1000;
+  const newTotal = +(consumedUnits + target).toFixed(2);
+  const tx = sqlDb.transaction(() => {
+    sqlDb.prepare('DELETE FROM topups WHERE device_id = ?').run(config.deviceId);
+    db.insertTopup({
+      device_id: config.deviceId,
+      units: newTotal,
+      reference: `DEMO-BALANCE-${target}`,
+      purchased_at: Math.floor(Date.now() / 1000),
+    });
+  });
+  tx();
+  res.json({ ok: true, target_units_remaining: target, total_purchased: newTotal });
+});
+
 module.exports = router;

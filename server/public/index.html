@@ -200,6 +200,19 @@
               Quick helpers for screen recordings and viva demonstrations.
               Loopback only &mdash; these endpoints refuse non-localhost callers.
             </p>
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+              <div class="input-group input-group-sm" style="max-width: 320px;">
+                <span class="input-group-text">Set units remaining</span>
+                <input type="number" id="demo-balance-input"
+                       class="form-control" min="0" step="0.1"
+                       placeholder="e.g. 0.5 for critical" />
+                <button id="btn-set-balance" type="button"
+                        class="btn btn-outline-primary">Apply</button>
+              </div>
+              <span class="small text-muted">
+                Re-sizes the seed top-up so the meter sits at the chosen balance immediately.
+              </span>
+            </div>
             <div class="d-flex flex-wrap gap-2">
               <button id="btn-clear-records" type="button"
                       class="btn btn-sm btn-outline-danger">

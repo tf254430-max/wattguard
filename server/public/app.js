@@ -39,11 +39,21 @@
     },
   });
 
+  // Stable colour per appliance — keeps each slice recognisable across
+  // refreshes and means a single-appliance pie isn't always blue.
+  const APPLIANCE_COLORS = {
+    lights: '#ffc107',  // yellow
+    tv:     '#6f42c1',  // purple
+    fridge: '#0dcaf0',  // cyan
+    iron:   '#fd7e14',  // orange
+    kettle: '#dc3545',  // red
+    ac:     '#198754',  // green
+  };
+  const FALLBACK_COLOR = '#6c757d';
+
   const pieChart = new Chart($('chart-pie'), {
     type: 'doughnut',
-    data: { labels: [], datasets: [{ data: [], backgroundColor: [
-      '#0d6efd', '#198754', '#ffc107', '#dc3545', '#6f42c1', '#20c997', '#6c757d',
-    ] }] },
+    data: { labels: [], datasets: [{ data: [], backgroundColor: [] }] },
     options: { responsive: true, plugins: { legend: { position: 'bottom' } } },
   });
 
@@ -115,10 +125,14 @@
       document.title = `${icon} ${severity.toUpperCase()} ${fmt2(units)}u - WattGuard`;
     }
 
-    // Only beep when the situation escalates — going from caution to
-    // warning, or warning to critical. Recovery (back to ok) is silent.
-    if (lastSeverityShown !== null &&
-        SEVERITY_RANK[severity] > SEVERITY_RANK[lastSeverityShown]) {
+    // Beep when the alert situation escalates, AND once on first
+    // observation if the page loads already in warning/critical state
+    // (otherwise the demo "open the page, see no alert sound" feels
+    // broken even though the strip is red).
+    const escalated = lastSeverityShown !== null &&
+        SEVERITY_RANK[severity] > SEVERITY_RANK[lastSeverityShown];
+    const firstAlert = lastSeverityShown === null && severity !== 'ok';
+    if (escalated || firstAlert) {
       playAlertBeep(severity);
     }
     lastSeverityShown = severity;
@@ -346,6 +360,28 @@
     await refreshAll();
   });
 
+  $('btn-set-balance').addEventListener('click', async () => {
+    const input = $('demo-balance-input');
+    const v = Number(input.value);
+    if (!Number.isFinite(v) || v < 0) {
+      alert('Enter a non-negative number of units.');
+      return;
+    }
+    const r = await fetch('/api/admin/set-balance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ units: v }),
+    });
+    if (!r.ok) {
+      alert('Could not set balance.');
+      return;
+    }
+    // Reset the severity tracker so the first observation at the new
+    // balance fires the alert beep / title / pulse refresh.
+    lastSeverityShown = null;
+    await refreshAll();
+  });
+
   $('settings-form').addEventListener('submit', async ev => {
     ev.preventDefault();
     const fd = new FormData(ev.target);
@@ -391,6 +427,8 @@
 
       pieChart.data.labels = pie.items.map(i => i.appliance);
       pieChart.data.datasets[0].data = pie.items.map(i => +i.wh.toFixed(1));
+      pieChart.data.datasets[0].backgroundColor =
+        pie.items.map(i => APPLIANCE_COLORS[i.appliance] || FALLBACK_COLOR);
       pieChart.update('none');
 
       renderEvents(ev.items);
