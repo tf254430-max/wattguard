@@ -32,11 +32,23 @@ function etaSeconds(deviceId, windowSec = 300) {
   return (remainingWh / avgPowerW) * 3600;
 }
 
+function readThreshold(key, fallback) {
+  const stored = db.getSetting(key, null);
+  if (stored === null) return fallback;
+  const n = Number(stored);
+  return Number.isFinite(n) ? n : fallback;
+}
+
 function alertSeverity(deviceId) {
   const remaining = unitsRemaining(deviceId);
-  if (remaining <= config.alertCriticalUnits) return 'critical';
-  if (remaining <= config.alertWarningUnits)  return 'warning';
-  if (remaining <= config.alertCautionUnits)  return 'caution';
+  // Settings persisted via the UI take precedence over the env-default
+  // thresholds in config so changing the form actually moves the bands.
+  const critical = readThreshold('critical_units', config.alertCriticalUnits);
+  const warning  = readThreshold('warning_units',  config.alertWarningUnits);
+  const caution  = readThreshold('caution_units',  config.alertCautionUnits);
+  if (remaining <= critical) return 'critical';
+  if (remaining <= warning)  return 'warning';
+  if (remaining <= caution)  return 'caution';
   return 'ok';
 }
 

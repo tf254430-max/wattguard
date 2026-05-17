@@ -42,14 +42,15 @@
   // Stable colour per appliance — keeps each slice recognisable across
   // refreshes and means a single-appliance pie isn't always blue.
   const APPLIANCE_COLORS = {
-    lights: '#ffc107',  // yellow
-    tv:     '#6f42c1',  // purple
-    fridge: '#0dcaf0',  // cyan
-    iron:   '#fd7e14',  // orange
-    kettle: '#dc3545',  // red
-    ac:     '#198754',  // green
+    lights:   '#ffc107',  // yellow
+    tv:       '#6f42c1',  // purple
+    fridge:   '#0dcaf0',  // cyan
+    iron:     '#fd7e14',  // orange
+    kettle:   '#dc3545',  // red
+    ac:       '#198754',  // green
+    baseline: '#6c757d',  // gray — idle / unattributed load
   };
-  const FALLBACK_COLOR = '#6c757d';
+  const FALLBACK_COLOR = '#adb5bd';
 
   const pieChart = new Chart($('chart-pie'), {
     type: 'doughnut',
@@ -138,34 +139,46 @@
     lastSeverityShown = severity;
   }
 
-  // Generate a short attention beep via Web Audio. No file to load, no
-  // permission prompt — but browsers block audio until the user has
-  // interacted with the page, so the first click on any button "unlocks"
-  // sound for the rest of the session.
-  function playAlertBeep(severity) {
+  // Single long-lived AudioContext, created lazily and resumed on every
+  // user gesture. Browsers refuse to *start* a fresh AudioContext from a
+  // callback that isn't directly in a user-gesture stack, which is why
+  // beeps fired from a setTimeout-driven refresh would silently fail.
+  let audioCtx = null;
+  function ensureAudio() {
     try {
       const Ctx = window.AudioContext || window.webkitAudioContext;
       if (!Ctx) return;
-      const ctx = new Ctx();
+      if (!audioCtx) audioCtx = new Ctx();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+    } catch (e) { /* ignore — audio is a nice-to-have */ }
+  }
+  // Unlock audio on the first user interaction of any kind.
+  ['click', 'keydown', 'touchstart'].forEach(ev => {
+    document.addEventListener(ev, ensureAudio, { passive: true });
+  });
+
+  function playAlertBeep(severity) {
+    ensureAudio();
+    if (!audioCtx) return;
+    try {
       const beeps = severity === 'critical' ? 3 : 1;
       const freq  = severity === 'critical' ? 1000 : 660;
-      const now = ctx.currentTime;
+      const now = audioCtx.currentTime;
       for (let i = 0; i < beeps; i++) {
         const start = now + i * 0.28;
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
         osc.type = 'square';
         osc.frequency.value = freq;
         osc.connect(gain);
-        gain.connect(ctx.destination);
+        gain.connect(audioCtx.destination);
         gain.gain.setValueAtTime(0.0001, start);
-        gain.gain.exponentialRampToValueAtTime(0.18, start + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.20);
+        gain.gain.exponentialRampToValueAtTime(0.25, start + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.22);
         osc.start(start);
-        osc.stop(start + 0.22);
+        osc.stop(start + 0.24);
       }
-      setTimeout(() => ctx.close(), beeps * 300 + 200);
-    } catch (e) { /* ignore — audio is a nice-to-have */ }
+    } catch (e) { /* ignore */ }
   }
 
   function fmtEta(seconds) {
