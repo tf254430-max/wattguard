@@ -10,6 +10,30 @@ const db = require('../db');
 
 const DEVICE_ID = config.deviceId;
 
+// Per-day variation so the 14-day bar chart isn't a flat strip of
+// identical bars. Indexed by daysAgo (0 = today, 13 = two weeks back).
+// Picks a small set of "shape" multipliers and reserves two specific
+// days for outliers — a load-shedding day with sharply reduced load
+// and a visitors / holiday day with elevated load. The pattern is
+// deterministic so re-running the seed reproduces the same chart.
+function dayMultipliers() {
+  const out = new Array(15).fill(1.0);
+  for (let d = 0; d < out.length; d++) {
+    // weekend bump (Sat=6, Sun=0)
+    const dt = new Date();
+    dt.setDate(dt.getDate() - d);
+    const dow = dt.getDay();
+    if (dow === 0 || dow === 6) out[d] = 1.15;
+  }
+  // load-shedding day (4 days ago) — fridge baseline only
+  out[4] = 0.42;
+  // visitor day (10 days ago) — guests + extra cooking
+  out[10] = 1.28;
+  return out;
+}
+
+const DAY_MULT = dayMultipliers();
+
 function hourPower(date) {
   // light/realistic Ugandan urban household profile
   const h = date.getHours();
@@ -18,8 +42,14 @@ function hourPower(date) {
   if (h >= 12 && h < 14)  p += 400;            // lunch
   if (h >= 18 && h < 22)  p += 1100;           // evening cooking + lights
   if (h >= 22 || h <  6)  p += 30;             // overnight
-  // jitter
-  return p + (Math.random() - 0.5) * 60;
+
+  // Apply the per-day multiplier so the daily totals vary realistically.
+  const daysAgo = Math.floor((Date.now() - date.getTime()) / 86400000);
+  const mult = DAY_MULT[Math.min(daysAgo, DAY_MULT.length - 1)] ?? 1.0;
+  p *= mult;
+
+  // jitter — slightly larger so the live chart doesn't look mechanical
+  return p + (Math.random() - 0.5) * 120;
 }
 
 function applianceForPower(p) {
